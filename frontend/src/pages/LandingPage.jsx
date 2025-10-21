@@ -1,28 +1,41 @@
 import React, { useEffect, useRef, useState } from "react";
+import { api } from "../services/api";
 
 const slides = [
   {
     image: "/images/LandingPage1.jpg",
-    caption: "Enhance your skills in different champions",
+    kicker: "Champion Mastery",
+    title: "Level up your mechanics",
+    subtitle:
+      "Personalized drills and insights to sharpen last-hits, trades, and rotations.",
   },
   {
     image: "/images/LandingPage2.jpg",
-    caption: "Play like a pro by seeing some key indicators",
+    kicker: "Pro Indicators",
+    title: "See what the pros see",
+    subtitle:
+      "Vision score, objective control, tempo—track the metrics that actually win games.",
   },
   {
     image: "/images/LandingPage3.jpg",
-    caption: "Perfect you gaming skills!",
+    kicker: "Consistent Improvement",
+    title: "Perfect your gameplay",
+    subtitle:
+      "Turn post-match reviews into clear, actionable goals for your next queue.",
   },
 ];
 export default function LandingPage() {
   const [index, setIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [error, setError] = useState(null);
+  const [username, setUsername] = useState("");
+  const [tagline, setTagline] = useState("");
   const prefersReducedMotion =
     typeof window !== "undefined" &&
     window.matchMedia &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  const SLIDE_INTERVAL = 3000;
+  const SLIDE_INTERVAL = 5000;
   const intervalRef = useRef(null);
 
   useEffect(() => {
@@ -52,6 +65,38 @@ export default function LandingPage() {
     return () => window.removeEventListener("keydown", handler);
   }, [index]);
 
+  const onSearch = async (rawUser, rawTag) => {
+    const u = (rawUser || "").trim();
+    const t = (rawTag || "").trim();
+
+    if (!u || !t) {
+      setError("Username and tag are required (e.g., Player#NA1).");
+      return;
+    }
+
+    try {
+      const resp = await api.get("/getPuuid", {
+        params: { username: u, tagline: t },
+      });
+
+      const { puuid } = resp.data || {};
+      const matchDetails = await api.get("/pullMatchDetail", {
+        params: { puuid: puuid },
+      });
+      console.log(matchDetails.data);
+    } catch (err) {
+      const status = err?.response?.status;
+      const msg =
+        status === 404
+          ? "Account not found. Double-check username and tag."
+          : status === 429
+          ? "Rate limited by Riot API. Please try again shortly."
+          : err?.response?.data?.error ||
+            "Something went wrong fetching the account.";
+      setError(msg);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-950 to-black text-white flex items-center justify-center px-6 py-12">
       <div className="max-w-7xl w-full grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
@@ -76,6 +121,11 @@ export default function LandingPage() {
                 className="flex-1 px-4 py-3 bg-transparent text-white placeholder-gray-400 focus:outline-none"
                 aria-label="Riot username"
                 type="text"
+                value={username}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  if (error) setError(null);
+                }}
               />
               <div className="w-px bg-white/10 h-7" />
               <input
@@ -84,21 +134,28 @@ export default function LandingPage() {
                 className="w-24 px-3 py-3 bg-transparent text-white placeholder-gray-400 focus:outline-none text-center"
                 aria-label="Riot tag"
                 type="text"
+                value={tagline}
+                onChange={(e) => {
+                  setTagline(e.target.value.toUpperCase());
+                  if (error) setError(null);
+                }}
+                maxLength={5}
               />
             </div>
 
             <button
               type="button"
-              className="mt-4 w-full max-w-md bg-indigo-600 hover:bg-indigo-500 transition-colors py-3 rounded-xl font-semibold"
+              className="mt-4 w-full max-w-md bg-indigo-600 hover:bg-indigo-500 transition-colors py-3 rounded-xl font-semibold disabled:opacity-50"
+              onClick={() => onSearch(username, tagline)}
+              disabled={!username.trim() || !tagline.trim()}
             >
               Search
             </button>
-          </div>
-
-          <div className="flex gap-4 mt-3 flex-wrap">
-            <span className="text-sm text-gray-400">Fast lookups</span>
-            <span className="text-sm text-gray-400">Privacy-first</span>
-            <span className="text-sm text-gray-400">Region-aware</span>
+            {error && (
+              <div className="mt-3 rounded-md border border-red-500/40 bg-red-900/30 text-red-200 px-3 py-2 text-sm">
+                {error}
+              </div>
+            )}
           </div>
         </div>
 
@@ -135,13 +192,17 @@ export default function LandingPage() {
 
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent" />
 
-              <div className="absolute left-6 bottom-6 right-6 text-left text-indigo-100">
-                <div
-                  role="status"
-                  aria-live="polite"
-                  className="text-lg sm:text-xl font-semibold drop-shadow"
-                >
-                  {slides[index].caption}
+              <div className="absolute left-6 right-6 bottom-6">
+                <div className="max-w-xl bg-black/40 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                  <div className="text-xs uppercase tracking-widest text-indigo-300">
+                    {slides[index].kicker}
+                  </div>
+                  <h3 className="mt-1 text-2xl sm:text-3xl font-bold text-white">
+                    {slides[index].title}
+                  </h3>
+                  <p className="mt-2 text-sm sm:text-base text-gray-200 leading-relaxed">
+                    {slides[index].subtitle}
+                  </p>
                 </div>
               </div>
 

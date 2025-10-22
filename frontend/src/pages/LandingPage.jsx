@@ -1,40 +1,64 @@
 import React, { useEffect, useRef, useState } from "react";
 import { api } from "../services/api";
+import LoadingPage from "./LoadingPage"
 
-const slides = [
-  {
-    image: "/images/LandingPage1.jpg",
-    kicker: "Champion Mastery",
-    title: "Level up your mechanics",
-    subtitle:
-      "Personalized drills and insights to sharpen last-hits, trades, and rotations.",
-  },
-  {
-    image: "/images/LandingPage2.jpg",
-    kicker: "Pro Indicators",
-    title: "See what the pros see",
-    subtitle:
-      "Vision score, objective control, tempo—track the metrics that actually win games.",
-  },
-  {
-    image: "/images/LandingPage3.jpg",
-    kicker: "Consistent Improvement",
-    title: "Perfect your gameplay",
-    subtitle:
-      "Turn post-match reviews into clear, actionable goals for your next queue.",
-  },
-];
 export default function LandingPage() {
+  const DD_BASE = "https://ddragon.leagueoflegends.com";
+  const ddSplash = (champ, skin = 0) =>
+  `${DD_BASE}/cdn/img/champion/splash/${encodeURIComponent(champ)}_${skin}.jpg`;
+
+  function makeDDragonSlides() {
+  return [
+    {
+      image: ddSplash("Zeri", 0),
+      kicker: "High-Voltage Mechanics",
+      title: "Snap your micro",
+      subtitle:
+        "Last-hits, animation cancels, and fast trades—turn Zeri-speed decisions into muscle memory.",
+      alt: "Zeri splash art",
+    },
+    {
+      image: ddSplash("LeeSin", 0),
+      kicker: "Tempo & Vision",
+      title: "See the map like a pro",
+      subtitle:
+        "Track timers, sweep vision, and chain objective pressure to force winning fights on your terms.",
+      alt: "Lee Sin splash art",
+    },
+    {
+      image: ddSplash("Kaisa", 0),
+      kicker: "Consistent Climb",
+      title: "Perfect your win conditions",
+      subtitle:
+        "Draft to your strengths, spike on evolutions, and turn small leads into snowballs.",
+      alt: "Kai’Sa splash art",
+    },
+  ];
+}
+
   const [index, setIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [error, setError] = useState(null);
   const [username, setUsername] = useState("");
   const [tagline, setTagline] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [ddVersion, setDdVersion] = useState(null);
+  const [slides, _] = useState(makeDDragonSlides());
+  
   const prefersReducedMotion =
     typeof window !== "undefined" &&
     window.matchMedia &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const resp = await fetch("https://ddragon.leagueoflegends.com/api/versions.json");
+        const versions = await resp.json();
+        if (Array.isArray(versions) && versions.length > 0) setDdVersion(versions[0]);
+      } catch { /* empty */ }
+    })();
+  }, []);
   const SLIDE_INTERVAL = 5000;
   const intervalRef = useRef(null);
 
@@ -66,6 +90,7 @@ export default function LandingPage() {
   }, [index]);
 
   const onSearch = async (rawUser, rawTag) => {
+    setLoading(true);
     const u = (rawUser || "").trim();
     const t = (rawTag || "").trim();
 
@@ -94,11 +119,14 @@ export default function LandingPage() {
           : err?.response?.data?.error ||
             "Something went wrong fetching the account.";
       setError(msg);
+    } finally{
+      setLoading(false)
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-950 to-black text-white flex items-center justify-center px-6 py-12">
+      {loading && <LoadingPage ddVersion={ddVersion} />}
       <div className="max-w-7xl w-full grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
         <div className="space-y-6 animate-fadeInUp">
           <h1 className="text-4xl sm:text-5xl font-extrabold leading-tight text-indigo-300 drop-shadow-lg">
@@ -172,7 +200,7 @@ export default function LandingPage() {
                   <img
                     key={s.image}
                     src={s.image}
-                    alt={s.caption}
+                    alt={s.alt || s.title}
                     className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-800 ease-in-out ${
                       isActive ? "opacity-100" : "opacity-0"
                     }`}

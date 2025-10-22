@@ -6,6 +6,7 @@ const {
   InvokeModelCommand,
 } = require("@aws-sdk/client-bedrock-runtime");
 const { fromNodeProviderChain } = require("@aws-sdk/credential-providers");
+const riot = require("./utils/riot");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -19,10 +20,13 @@ const MODEL_ID =
   process.env.BEDROCK_MODEL_ID || "anthropic.claude-sonnet-4-5-20250929-v1:0";
 
 const MAX_MATCHES = 300;
-const DETAILS_CONCURRENCY = 8;
+const BATCH_PER_SECOND = 15;
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const jitter = () => 950 + Math.floor(Math.random() * 150);
 
 const corsOptions = {
-  origin: process.env.CLIENT_URL || "http://localhost:5173",
+  origin: process.env.CLIENT_URL || "http://localhost:5174",
   credentials: true,
   optionsSuccessStatus: 200,
 };
@@ -33,67 +37,6 @@ const bedrock = new BedrockRuntimeClient({
   region: AWS_REGION,
   credentials: fromNodeProviderChain(),
 });
-
-async function fetchRiot(url) {
-  const resp = await fetch(url, { headers: { "X-Riot-Token": RIOT_API_KEY } });
-
-  if (resp.status === 429) {
-    const retryAfter = Number(resp.headers.get("retry-after") || 0);
-    return { rateLimited: true, retryAfter };
-  }
-
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => "");
-    return { error: { status: resp.status, text } };
-  }
-
-  const data = await resp.json();
-  return { data, headers: resp.headers };
-}
-
-function projectMatches(matches, selfPuuid) {
-  return matches.map((m) => {
-    const info = m?.info || {};
-    const meta = m?.metadata || {};
-
-    const idx = Array.isArray(meta.participants)
-      ? meta.participants.findIndex((p) => p === selfPuuid)
-      : -1;
-
-    const p =
-      (Array.isArray(info.participants) && info.participants[idx]) ||
-      (info.participants || [])[0] ||
-      {};
-
-    return {
-      id: meta.matchId,
-      end: info.gameEndTimestamp,
-      duration: info.gameDuration,
-      queueId: info.queueId,
-      version: info.gameVersion,
-      champion: p.championName,
-      win: p.win,
-      k: p.kills,
-      d: p.deaths,
-      a: p.assists,
-      gold: p.goldEarned,
-      dmgDealt: p.totalDamageDealtToChampions,
-      dmgTaken: p.totalDamageTaken,
-      vision: p.visionScore,
-      cs: (p.totalMinionsKilled || 0) + (p.neutralMinionsKilled || 0),
-      role: p.teamPosition || p.role || p.lane,
-      items: [p.item0, p.item1, p.item2, p.item3, p.item4, p.item5, p.item6],
-      teamObj: (info.teams || []).map((t) => ({
-        teamId: t.teamId,
-        win: t.win,
-        baron: t.objectives?.baron?.kills,
-        dragon: t.objectives?.dragon?.kills,
-        herald: t.objectives?.riftHerald?.kills,
-        tower: t.objectives?.tower?.kills,
-      })),
-    };
-  });
-}
 
 app.get("/api/getPuuid", async (req, res) => {
   try {
@@ -113,7 +56,7 @@ app.get("/api/getPuuid", async (req, res) => {
       username
     )}/${encodeURIComponent(tagline)}`;
 
-    const { data, error, rateLimited } = await fetchRiot(url);
+    const { data, error, rateLimited } = await riot.fetchRiot(url);
 
     if (rateLimited) {
       return res
@@ -159,7 +102,7 @@ app.get("/api/pullMatchDetail", async (req, res) => {
         puuid
       )}/ids?start=${start}&count=${count}`;
 
-      const { data, error, rateLimited } = await fetchRiot(idsUrl);
+      const { data, error, rateLimited } = await riot.fetchRiot(idsUrl);
 
       if (rateLimited) {
         rateLimitedDuringIds = true;
@@ -176,59 +119,69 @@ app.get("/api/pullMatchDetail", async (req, res) => {
       start += data.length;
     }
 
-    const results = new Array(matchIds.length);
-    let idx = 0;
+    const results = [];
     let hitRateLimitDuringDetails = false;
 
-    async function worker() {
-      while (true) {
-        if (hitRateLimitDuringDetails) return;
-        const myIdx = idx++;
-        if (myIdx >= matchIds.length) return;
+    for (
+      let i = 0;
+      i < matchIds.length && !hitRateLimitDuringDetails;
+      i += BATCH_PER_SECOND
+    ) {
+      const batchIds = matchIds.slice(i, i + BATCH_PER_SECOND);
 
-        const id = matchIds[myIdx];
-        const url = `${RIOT_BASE_URL}/lol/match/v5/matches/${id}`;
-        const { data, rateLimited } = await fetchRiot(url);
+      const batchResults = await Promise.all(
+        batchIds.map(async (id) => {
+          const url = `${RIOT_BASE_URL}/lol/match/v5/matches/${id}`;
+          const { data, rateLimited, error } = await riot.fetchRiot(url);
 
-        if (rateLimited) {
-          hitRateLimitDuringDetails = true;
-          return;
-        }
-        if (data) results[myIdx] = data;
+          if (rateLimited) {
+            hitRateLimitDuringDetails = true;
+            return null;
+          }
+          if (error) {
+            if (NODE_ENV !== "production") {
+              console.warn(
+                `[match ${id}] ${error.status}: ${
+                  error.text?.slice(0, 180) || ""
+                }`
+              );
+            }
+            return null;
+          }
+          return data || null;
+        })
+      );
+
+      for (const r of batchResults) if (r) results.push(r);
+
+      if (
+        !hitRateLimitDuringDetails &&
+        i + BATCH_PER_SECOND < matchIds.length
+      ) {
+        await sleep(jitter());
       }
     }
 
-    const workers = Array.from(
-      { length: Math.min(DETAILS_CONCURRENCY, matchIds.length) },
-      () => worker()
-    );
-    await Promise.all(workers);
+    if (NODE_ENV !== "production") {
+      console.log(
+        `Fetched ${results.length} detailed matches (out of ${matchIds.length})`
+      );
+    }
 
-    const matches = results.filter(Boolean);
-    const compact = projectMatches(matches, puuid);
-
-    const systemText = `
-You are a League of Legends performance analyst.
-- Return STRICT JSON only (no commentary).
-- Compute overall winRate, avgKDA, topChampions, roleDistribution,
-  keyIndicators (vision, early CS/gold if possible, objective impact),
-  and 3-5 prioritized recommendations.
-- Keep explanations concise and actionable.
-`;
-
+    const compact = riot.projectMatches(results, puuid);
     const userPayload = {
       puuid,
       rateLimited: rateLimitedDuringIds || hitRateLimitDuringDetails,
-      fetchedMatches: matches.length,
+      fetchedMatches: results.length,
       requestedCap: MAX_MATCHES,
       matches: compact,
     };
 
     const body = {
       anthropic_version: "bedrock-2023-05-31",
-      max_tokens: 1500,
+      max_tokens: 5000,
       temperature: 0.2,
-      system: systemText,
+      system: riot.systemPrompt,
       messages: [
         {
           role: "user",
@@ -259,7 +212,7 @@ You are a League of Legends performance analyst.
       puuid,
       model: MODEL_ID,
       partial: rateLimitedDuringIds || hitRateLimitDuringDetails,
-      fetched: matches.length,
+      fetched: results.length,
       cap: MAX_MATCHES,
       analysis: analysisJson,
     });

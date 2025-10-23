@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../services/api";
 import LoadingPage from "./LoadingPage"
+import { useNavigate } from "react-router-dom";
 
 export default function LandingPage() {
   const DD_BASE = "https://ddragon.leagueoflegends.com";
@@ -36,6 +37,7 @@ export default function LandingPage() {
   ];
 }
 
+  const navigate = useNavigate();
   const [index, setIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [error, setError] = useState(null);
@@ -96,31 +98,32 @@ export default function LandingPage() {
 
     if (!u || !t) {
       setError("Username and tag are required (e.g., Player#NA1).");
+      setLoading(false);
       return;
     }
 
     try {
-      const resp = await api.get("/getPuuid", {
-        params: { username: u, tagline: t },
-      });
-
+      const resp = await api.get("/getPuuid", { params: { username: u, tagline: t } });
       const { puuid } = resp.data || {};
-      const matchDetails = await api.get("/pullMatchDetail", {
-        params: { puuid: puuid },
-      });
-      console.log(matchDetails.data);
+      const matchDetails = await api.get("/pullMatchDetail", { params: { puuid } });
+      const analysis = matchDetails.data?.analysis;
+
+      try {
+        sessionStorage.setItem("riot:analysis", JSON.stringify(analysis));
+      } catch {
+        // skip
+      }
+
+      navigate("/report", { state: { analysis } });
     } catch (err) {
       const status = err?.response?.status;
       const msg =
-        status === 404
-          ? "Account not found. Double-check username and tag."
-          : status === 429
-          ? "Rate limited by Riot API. Please try again shortly."
-          : err?.response?.data?.error ||
-            "Something went wrong fetching the account.";
+        status === 404 ? "Account not found. Double-check username and tag."
+        : status === 429 ? "Rate limited by Riot API. Please try again shortly."
+        : err?.response?.data?.error || "Something went wrong fetching the account.";
       setError(msg);
-    } finally{
-      setLoading(false)
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -268,7 +271,7 @@ export default function LandingPage() {
                   />
                 </button>
               ))}
-            </div>
+            </div> 
           </div>
         </div>
       </div>

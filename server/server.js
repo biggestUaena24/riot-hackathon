@@ -23,7 +23,6 @@ const MAX_MATCHES = 300;
 const BATCH_PER_SECOND = 15;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const jitter = () => 950 + Math.floor(Math.random() * 150);
 
 const corsOptions = {
   origin: process.env.CLIENT_URL || "http://localhost:5174",
@@ -122,6 +121,9 @@ app.get("/api/pullMatchDetail", async (req, res) => {
     const results = [];
     let hitRateLimitDuringDetails = false;
 
+    // 15 requests per second -> ~66ms spacing
+    const SPACING_MS = Math.floor(1000 / BATCH_PER_SECOND);
+
     for (
       let i = 0;
       i < matchIds.length && !hitRateLimitDuringDetails;
@@ -129,36 +131,42 @@ app.get("/api/pullMatchDetail", async (req, res) => {
     ) {
       const batchIds = matchIds.slice(i, i + BATCH_PER_SECOND);
 
-      const batchResults = await Promise.all(
-        batchIds.map(async (id) => {
-          const url = `${RIOT_BASE_URL}/lol/match/v5/matches/${id}`;
-          const { data, rateLimited, error } = await riot.fetchRiot(url);
+      const batchPromises = [];
+      for (const id of batchIds) {
+        batchPromises.push(
+          (async () => {
+            const url = `${RIOT_BASE_URL}/lol/match/v5/matches/${id}`;
+            const { data, rateLimited, error } = await riot.fetchRiot(url);
 
-          if (rateLimited) {
-            hitRateLimitDuringDetails = true;
-            return null;
-          }
-          if (error) {
-            if (NODE_ENV !== "production") {
-              console.warn(
-                `[match ${id}] ${error.status}: ${
-                  error.text?.slice(0, 180) || ""
-                }`
-              );
+            if (rateLimited) {
+              hitRateLimitDuringDetails = true;
+              return null;
             }
-            return null;
-          }
-          return data || null;
-        })
-      );
+            if (error) {
+              if (NODE_ENV !== "production") {
+                console.warn(
+                  `[match ${id}] ${error.status}: ${
+                    error.text?.slice(0, 180) || ""
+                  }`
+                );
+              }
+              return null;
+            }
+            return data || null;
+          })()
+        );
+        // stagger
+        await sleep(SPACING_MS);
+      }
 
+      const batchResults = await Promise.all(batchPromises);
       for (const r of batchResults) if (r) results.push(r);
 
       if (
         !hitRateLimitDuringDetails &&
         i + BATCH_PER_SECOND < matchIds.length
       ) {
-        await sleep(jitter());
+        await sleep(250);
       }
     }
 
@@ -168,6 +176,11 @@ app.get("/api/pullMatchDetail", async (req, res) => {
       );
     }
 
+    results.sort((a, b) => {
+      const ta = a?.info?.gameEndTimestamp ?? a?.info?.gameCreation ?? 0;
+      const tb = b?.info?.gameEndTimestamp ?? b?.info?.gameCreation ?? 0;
+      return tb - ta;
+    });
     const compact = riot.projectMatches(results, puuid);
     const userPayload = {
       puuid,
@@ -179,8 +192,8 @@ app.get("/api/pullMatchDetail", async (req, res) => {
 
     const body = {
       anthropic_version: "bedrock-2023-05-31",
-      max_tokens: 5000,
-      temperature: 0.2,
+      max_tokens: 8000,
+      temperature: 0,
       system: riot.systemPrompt,
       messages: [
         {

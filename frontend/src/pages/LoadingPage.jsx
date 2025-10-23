@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const FUN_FACTS = [
   {
@@ -97,9 +97,7 @@ export default function LoadingPage({ ddVersion }) {
         </div>
 
         <div className="mt-6 text-xs text-gray-400/90">
-          Tip: we fetch matches in bursts to respect Riot rate limits. This can
-          pause briefly if the API responds with
-          <span className="text-[#c8aa6e]"> 429</span>.
+          This process may take up to 1-3 mins
         </div>
       </div>
     </div>

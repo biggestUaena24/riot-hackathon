@@ -1,20 +1,40 @@
+const { Agent, request } = require("undici");
 const RIOT_API_KEY = process.env.API_KEY;
 
-async function fetchRiot(url) {
-  const resp = await fetch(url, { headers: { "X-Riot-Token": RIOT_API_KEY } });
+const dispatcher = new Agent({
+  keepAliveTimeout: 10_000,
+  keepAliveMaxTimeout: 15_000,
+  connections: 128,
+});
 
-  if (resp.status === 429) {
-    const retryAfter = Number(resp.headers.get("retry-after") || 0);
-    return { rateLimited: true, retryAfter };
+function withTimeout(ms) {
+  const ac = new AbortController();
+  const id = setTimeout(() => ac.abort(), ms);
+  return { signal: ac.signal, cancel: () => clearTimeout(id) };
+}
+
+async function fetchRiot(url, { timeoutMs = 8_000 } = {}) {
+  const { signal, cancel } = withTimeout(timeoutMs);
+  try {
+    const res = await fetch(url, {
+      dispatcher,
+      signal,
+      headers: { "X-Riot-Token": RIOT_API_KEY },
+    });
+
+    if (res.status === 429) {
+      const retryAfter = Number(res.headers.get("retry-after") || 0);
+      return { rateLimited: true, retryAfter };
+    }
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      return { error: { status: res.status, text } };
+    }
+    const data = await res.json();
+    return { data, headers: res.headers };
+  } finally {
+    cancel();
   }
-
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => "");
-    return { error: { status: resp.status, text } };
-  }
-
-  const data = await resp.json();
-  return { data, headers: resp.headers };
 }
 
 function projectMatches(matches, selfPuuid) {

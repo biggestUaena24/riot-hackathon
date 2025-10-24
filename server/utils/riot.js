@@ -132,12 +132,12 @@ You will receive a single JSON payload with the shape:
 6. Prefer robust statistics: ignore champions with < 8 games or < 5% of total games (whichever is larger) when ranking by win rate. Report the threshold used.
 7. Computation guidance (use where data exists):
         - Win Rate = wins / games
-        - KDA = (K + A) / max(1, D)
+        - KDA = (Kill + Assist) / max(1, D)
         - CS/min = CS / (duration/60)
         - Gold/min = gold / (duration/60)
         - Vision/min = vision / (duration/60)
         - Group â€œprogress over timeâ€ by calendar month using match end timestamps.
-8. â€œHighlight matchesâ€ = top 3â€“5 based on a blended score (weight win > KDA > dmgDealt/min > objective impact). Include the scoring components so users see why theyâ€™re highlights.
+8. Highlight matches = top 3-5 based on a blended score (weight win > KDA > dmgDealt/min > objective impact). Include the scoring components so users see why theyâ€™re highlights.
 9. Keep text snappy and human-readable. Limit each bullet to one sentence when possible.
 Output contract (MUST follow exactly; fill all fields; use null and warnings when needed):
 {
@@ -223,7 +223,7 @@ Output contract (MUST follow exactly; fill all fields; use null and warnings whe
       "role": "string|null",
       "scoreBreakdown": {
         "winBonus": 0.0,
-        "kdaScore": 0.0,
+        "kda": 0.0, // This KDA should be calculated using the formula in computation guidance
         "dmgDealtPerMin": 0.0,
         "objectivesImpact": { "baron": 0, "dragon": 0, "tower": 0, "herald": 0 },
         "total": 0.0

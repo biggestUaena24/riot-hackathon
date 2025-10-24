@@ -24,8 +24,6 @@ export default function ReportShowcase({ data, onExit }) {
   }, []);
   const champIcon = (champ) =>
     ddVersion ? `${DD_BASE}/cdn/${ddVersion}/img/champion/${encodeURIComponent(champ)}.png` : null;
-  const loadingArt = (champ, skin = 0) =>
-    `${DD_BASE}/cdn/img/champion/loading/${encodeURIComponent(champ)}_${skin}.jpg`; // no version needed
   const splashArt = (champ, skin = 0) =>
     `${DD_BASE}/cdn/img/champion/splash/${encodeURIComponent(champ)}_${skin}.jpg`;
 
@@ -49,9 +47,7 @@ export default function ReportShowcase({ data, onExit }) {
       {
         key: "overview",
         title: "Performance Overview",
-        subtitle: meta?.timeSpan?.from && meta?.timeSpan?.to
-          ? `Matches ${meta.fetchedMatches ?? 0} • ${meta.timeSpan.from} → ${meta.timeSpan.to}`
-          : `Matches ${meta.fetchedMatches ?? 0}`,
+        subtitle: `Matches ${meta.fetchedMatches ?? 0}`,
         bgChamp: heroChamp,
         render: () => <OverviewPanel overview={overview} />,
       },
@@ -81,7 +77,7 @@ export default function ReportShowcase({ data, onExit }) {
         title: "Highlight Matches",
         subtitle: "Top performances with score breakdown",
         bgChamp: (highlights?.[0]?.champion || heroChamp),
-        render: () => <HighlightsPanel highlights={highlights} loadingArt={loadingArt} />,
+        render: () => <HighlightsPanel highlights={highlights} splashArt={splashArt} />,
       },
       {
         key: "year-end",
@@ -173,16 +169,13 @@ export default function ReportShowcase({ data, onExit }) {
           <div className="text-[#c8aa6e] uppercase tracking-[.22em] text-xs">Summoner Report</div>
           <div className="text-[13px] text-gray-200 mt-1">
             {meta?.rateLimited && <span className="text-amber-300">Partial (rate-limited)</span>}
-            {meta?.timeSpan?.from && meta?.timeSpan?.to && (
-              <span className="ml-2">• {meta.timeSpan.from} → {meta.timeSpan.to}</span>
-            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
           {onExit && (
             <button
               onClick={onExit}
-              className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-sm"
+              className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-sm text-white"
             >
               Exit
             </button>
@@ -448,49 +441,213 @@ function StrengthsWeaknessesPanel({ sAndW }) {
   );
 }
 
-function HighlightsPanel({ highlights, loadingArt }) {
+function HighlightsPanel({ highlights, splashArt }) {
+  if (!Array.isArray(highlights) || highlights.length === 0) {
+    return (
+      <div className="lol-panel p-5 text-gray-300">
+        No highlight matches to show.
+      </div>
+    );
+  }
+  return <HighlightCarousel highlights={highlights} splashArt={splashArt} />;
+}
+
+function HighlightCarousel({ highlights, splashArt }) {
+  const [idx, setIdx] = useState(0);
+  const wrap = (n) => (n + highlights.length) % highlights.length;
+
+  // Keyboard (focus the banner to use ←/→)
+  const onKeyDown = (e) => {
+    if (e.key === "ArrowRight") setIdx((i) => wrap(i + 1));
+    if (e.key === "ArrowLeft") setIdx((i) => wrap(i - 1));
+  };
+
+  // Buttons only (desktop) + explicit touch-swipe (mobile)
+  const [dir, setDir] = useState(0);
+  const go = (next) => {
+    const nextIdx = wrap(next);
+    setDir(nextIdx > idx ? 1 : -1);
+    setIdx(nextIdx);
+  };
+
+  // Touch-swipe (no mouse drag)
+  const touchX = useRef(null);
+  const onTouchStart = (e) => {
+    touchX.current = e.touches?.[0]?.clientX ?? null;
+  };
+  const onTouchEnd = (e) => {
+    const start = touchX.current;
+    const end = e.changedTouches?.[0]?.clientX ?? null;
+    touchX.current = null;
+    if (start == null || end == null) return;
+    const dx = end - start;
+    const threshold = 60;
+    if (dx < -threshold) go(idx + 1);
+    else if (dx > threshold) go(idx - 1);
+  };
+
+  const cur = highlights[idx];
   const round = (n, d = 2) => (n == null ? "—" : Number(n).toFixed(d));
   return (
-    <div className="grid md:grid-cols-3 gap-4">
-      {highlights.map((h, idx) => (
-        <Motion.div
-          key={h.matchId}
-          className="relative rounded-xl overflow-hidden border border-white/20 bg-white/10 group"
-          initial={{ opacity: 0, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: idx * 0.05 }}
-        >
-          <div className="absolute inset-0 opacity-60 group-hover:opacity-75 transition-opacity">
-            <img
-            src={loadingArt(h.champion)}
-            alt={`${h.champion} loading art`}
-            className="w-full h-full object-cover scale-100 group-hover:scale-[1.03] transition-transform duration-300"
-            style={{ objectPosition: "50% 20%" }}
-            />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/45 to-transparent" />
-          </div>
-          <div className="relative p-4">
-            <div className="font-bold text-lg text-gray-200">{h.champion}</div>
-            <div className="text-xs text-gray-200 mb-2">{h.role || "—"}</div>
-            <div className="text-sm text-white">{h.oneLine}</div>
-            <div className="mt-3 text-xs text-gray-200">
-              <div>Score: {round(h?.scoreBreakdown?.total ?? 0, 2)}</div>
-              <div className="grid grid-cols-2 gap-1 mt-1">
-                <div>Win bonus: {round(h?.scoreBreakdown?.winBonus ?? 0)}</div>
-                <div>KDA: {round(h?.scoreBreakdown?.kdaScore ?? 0)}</div>
-                <div>DMG/min: {round(h?.scoreBreakdown?.dmgDealtPerMin ?? 0)}</div>
-                <div>
-                  Obj: B{h?.scoreBreakdown?.objectivesImpact?.baron ?? 0} D{h?.scoreBreakdown?.objectivesImpact?.dragon ?? 0} T{h?.scoreBreakdown?.objectivesImpact?.tower ?? 0} H{h?.scoreBreakdown?.objectivesImpact?.herald ?? 0}
-                </div>
-              </div>
+    <div
+      tabIndex={0}
+      onKeyDown={onKeyDown}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      className="relative w-full h-[420px] md:h-[520px] rounded-2xl overflow-hidden border border-white/20 focus:outline-none focus:ring-2 focus:ring-[#c8aa6e]/60"
+      aria-roledescription="carousel"
+      aria-label="Highlight Matches"
+    >
+      {/* Full splash artwork (no aggressive crop) */}
+      <div className="absolute inset-0 bg-black" />
+      <Motion.img
+        key={`${cur.champion}-${idx}`}
+        src={splashArt(cur.champion)}
+        alt={`${cur.champion} splash art`}
+        className="absolute inset-0 w-full h-full object-contain"
+        initial={{ scale: 1.02, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.7, ease: "easeOut" }}
+        // tip: splash is landscape; no objectPosition tweak needed
+        draggable={false}
+      />
+
+      {/* Legibility overlays */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/35 to-black/80" />
+      <div className="absolute inset-0 bg-[radial-gradient(900px_circle_at_15%_0%,rgba(200,170,110,.12),transparent_60%)]" />
+      <div className="absolute inset-0 backdrop-blur-[0.5px]" />
+
+      {/* Slide content (no mouse drag; buttons/touch only) */}
+      <Motion.div
+        key={`content-${idx}`}
+        className="relative h-full flex items-end"
+        initial={{ x: dir >= 0 ? 44 : -44, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: dir >= 0 ? -44 : 44, opacity: 0 }}
+        transition={{ duration: 0.38, ease: "easeOut" }}
+      >
+        <div className="w-full p-4 sm:p-6 md:p-8">
+          {/* Top meta row */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-1 text-[11px] uppercase tracking-widest rounded bg-white/10 border border-white/15 text-[#c8aa6e]">
+                Highlight
+              </span>
+              <span className="text-xs text-gray-200/90">
+                {cur.role || "—"} • {cur.matchId}
+              </span>
+            </div>
+            <div className="text-xs text-gray-200/80">
+              {idx + 1}/{highlights.length}
             </div>
           </div>
-        </Motion.div>
-      ))}
+
+          {/* Champion + One-liner */}
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+            <div>
+              <h3 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white drop-shadow-[0_4px_14px_rgba(0,0,0,0.55)]">
+                {cur.champion}
+              </h3>
+              {cur.oneLine && (
+                <p className="mt-2 max-w-2xl text-sm sm:text-base text-gray-100/95">
+                  {cur.oneLine}
+                </p>
+              )}
+            </div>
+
+            {/* KDA pill (use your existing string or format it here) */}
+            <Motion.div
+              className="md:mb-1 inline-flex items-center gap-2 rounded-full bg-black/40 border border-white/15 px-3 py-1.5"
+              initial={{ y: 12, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.12, duration: 0.3 }}
+              aria-label="KDA summary"
+            >
+              <span className="text-xs text-gray-300">KDA</span>
+              <span className="text-sm font-semibold text-white">
+                {cur?.scoreBreakdown?.kda ?? "—"}
+              </span>
+            </Motion.div>
+          </div>
+
+          {/* Stat cards row */}
+          <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <GlassStat label="Score" value={round(cur?.scoreBreakdown?.total ?? 0, 2)} />
+            <GlassStat label="Win bonus" value={round(cur?.scoreBreakdown?.winBonus ?? 0)} />
+            <GlassStat label="DMG / min" value={round(cur?.scoreBreakdown?.dmgDealtPerMin ?? 0)} />
+            <GlassStat
+              label="Objectives"
+              value={`Baron ${cur?.scoreBreakdown?.objectivesImpact?.baron ?? 0} · Dragon ${cur?.scoreBreakdown?.objectivesImpact?.dragon ?? 0} · Tower ${cur?.scoreBreakdown?.objectivesImpact?.tower ?? 0} · Herald ${cur?.scoreBreakdown?.objectivesImpact?.herald ?? 0}`}
+            />
+          </div>
+
+          {/* Controls */}
+          <div className="mt-6 flex items-center justify-between">
+            <div className="text-[11px] uppercase tracking-[.18em] text-[#c8aa6e]">
+              Tap/Swipe on mobile • Use ←/→ • Buttons below
+            </div>
+            <div className="flex items-center gap-2">
+              <CarouselButton onClick={() => go(idx - 1)} ariaLabel="Previous highlight">
+                ←
+              </CarouselButton>
+              <CarouselButton onClick={() => go(idx + 1)} ariaLabel="Next highlight" primary>
+                →
+              </CarouselButton>
+            </div>
+          </div>
+        </div>
+      </Motion.div>
+
+      {/* Dots */}
+      <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center gap-1.5">
+        {highlights.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => go(i)}
+            className={`h-1.5 rounded-full transition-all ${
+              i === idx ? "w-6 bg-[#c8aa6e]" : "w-2.5 bg-white/40 hover:bg-white/60"
+            }`}
+            aria-label={`Go to highlight ${i + 1}`}
+          />
+        ))}
+      </div>
     </div>
   );
 }
+
+function GlassStat({ label, value }) {
+  return (
+    <Motion.div
+      className="rounded-xl px-3 py-2.5 bg-white/10 border border-white/15 text-white"
+      initial={{ y: 10, opacity: 0 }}
+      whileInView={{ y: 0, opacity: 1 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="text-[11px] uppercase tracking-widest text-[#c8aa6e] mb-0.5">
+        {label}
+      </div>
+      <div className="text-base font-semibold tabular-nums">{value}</div>
+    </Motion.div>
+  );
+}
+
+function CarouselButton({ children, onClick, ariaLabel, primary = false }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={ariaLabel}
+      className={`px-3 py-1.5 rounded-lg border text-sm transition ${
+        primary
+          ? "bg-[#c8aa6e] text-black hover:brightness-110 border-[#c8aa6e]/80"
+          : "bg-white/10 hover:bg-white/15 border-white/15 text-white"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 
 function YearEndPanel({ yearEnd, champIcon, splashArt }) {
   const mapToDdragonId = (name) => {

@@ -20,28 +20,54 @@ export default function ReportShowcase({ data, onExit }) {
         // skip
       }
     })();
-    return () => { ignore = true; };
+    return () => {
+      ignore = true;
+    };
   }, []);
   const champIcon = (champ) =>
-    ddVersion ? `${DD_BASE}/cdn/${ddVersion}/img/champion/${encodeURIComponent(champ)}.png` : null;
+    ddVersion
+      ? `${DD_BASE}/cdn/${ddVersion}/img/champion/${encodeURIComponent(
+          champ
+        )}.png`
+      : null;
   const splashArt = (champ, skin = 0) =>
-    `${DD_BASE}/cdn/img/champion/splash/${encodeURIComponent(champ)}_${skin}.jpg`;
+    `${DD_BASE}/cdn/img/champion/splash/${encodeURIComponent(
+      champ
+    )}_${skin}.jpg`;
 
   const meta = parsed?.meta ?? {};
   const overview = parsed?.overview ?? {};
-  const mostPlayed = Array.isArray(parsed?.mostPlayedChampions) ? parsed.mostPlayedChampions : [];
+  const mostPlayed = Array.isArray(parsed?.mostPlayedChampions)
+    ? parsed.mostPlayedChampions
+    : [];
   const highestWR = parsed?.highestWinRateChampion ?? {};
-  const sAndW = parsed?.strengthsAndWeaknesses ?? { strengths: [], weaknesses: [] };
-  const kpis = Array.isArray(parsed?.keypointsForImprovement) ? parsed.keypointsForImprovement : [];
-  const highlights = Array.isArray(parsed?.highlightMatches) ? parsed.highlightMatches : [];
-  const yearEnd = parsed?.yearEndSummary ?? { mostPlayed: [], biggestImprovements: [], funFacts: [] };
-  const share = parsed?.shareableMoments ?? { tweetLength: [], storyLength: [], cardIdeas: [] };
+  const sAndW = parsed?.strengthsAndWeaknesses ?? {
+    strengths: [],
+    weaknesses: [],
+  };
+  const kpis = Array.isArray(parsed?.keypointsForImprovement)
+    ? parsed.keypointsForImprovement
+    : [];
+  const highlights = Array.isArray(parsed?.highlightMatches)
+    ? parsed.highlightMatches
+    : [];
+  const yearEnd = parsed?.yearEndSummary ?? {
+    mostPlayed: [],
+    biggestImprovements: [],
+    funFacts: [],
+  };
+  const share = parsed?.shareableMoments ?? {
+    tweetLength: [],
+    storyLength: [],
+    cardIdeas: [],
+  };
 
   const sections = useMemo(() => {
     const heroChamp =
       highestWR?.champion ||
       mostPlayed?.[0]?.champion ||
-      (highlights[0]?.champion || "Ashe");
+      highlights[0]?.champion ||
+      "Ashe";
 
     return [
       {
@@ -56,41 +82,51 @@ export default function ReportShowcase({ data, onExit }) {
         title: "Most Played Champions",
         subtitle: "Core pool performance",
         bgChamp: mostPlayed?.[0]?.champion || heroChamp,
-        render: () => <ChampionsPanel mostPlayed={mostPlayed} champIcon={champIcon} />,
+        render: () => (
+          <ChampionsPanel mostPlayed={mostPlayed} champIcon={champIcon} />
+        ),
       },
       {
         key: "improvements",
         title: "Key Points for Improvement",
         subtitle: "Prioritized, actionable next steps",
-        bgChamp: (mostPlayed?.[1]?.champion || heroChamp),
+        bgChamp: mostPlayed?.[1]?.champion || heroChamp,
         render: () => <ImprovementsPanel kpis={kpis} />,
       },
       {
         key: "strengths-weaknesses",
         title: "Strengths & Weaknesses",
         subtitle: "Lean in / Fix fast",
-        bgChamp: (mostPlayed?.[2]?.champion || heroChamp),
+        bgChamp: mostPlayed?.[2]?.champion || heroChamp,
         render: () => <StrengthsWeaknessesPanel sAndW={sAndW} />,
       },
       {
         key: "highlights",
         title: "Highlight Matches",
         subtitle: "Top performances with score breakdown",
-        bgChamp: (highlights?.[0]?.champion || heroChamp),
-        render: () => <HighlightsPanel highlights={highlights} splashArt={splashArt} />,
+        bgChamp: highlights?.[0]?.champion || heroChamp,
+        render: () => (
+          <HighlightsPanel highlights={highlights} splashArt={splashArt} />
+        ),
       },
       {
         key: "year-end",
         title: "Year-End Summary",
         subtitle: "Fun, shareable highlights",
-        bgChamp: (mostPlayed?.[3]?.champion || heroChamp),
-        render: () => <YearEndPanel yearEnd={yearEnd} champIcon={champIcon} splashArt={splashArt} />,
+        bgChamp: mostPlayed?.[3]?.champion || heroChamp,
+        render: () => (
+          <YearEndPanel
+            yearEnd={yearEnd}
+            champIcon={champIcon}
+            splashArt={splashArt}
+          />
+        ),
       },
       {
         key: "share",
         title: "Shareable Moments",
         subtitle: "Ready-to-post snippets & cards",
-        bgChamp: (mostPlayed?.[4]?.champion || heroChamp),
+        bgChamp: mostPlayed?.[4]?.champion || heroChamp,
         render: () => <ShareablesPanel share={share} />,
       },
       {
@@ -166,9 +202,13 @@ export default function ReportShowcase({ data, onExit }) {
 
       <div className="max-w-7xl mx-auto px-5 pt-6 pb-2 flex items-center justify-between">
         <div>
-          <div className="text-[#c8aa6e] uppercase tracking-[.22em] text-xs">Summoner Report</div>
+          <div className="text-[#c8aa6e] uppercase tracking-[.22em] text-xs">
+            Summoner Report
+          </div>
           <div className="text-[13px] text-gray-200 mt-1">
-            {meta?.rateLimited && <span className="text-amber-300">Partial (rate-limited)</span>}
+            {meta?.rateLimited && (
+              <span className="text-amber-300">Partial (rate-limited)</span>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -194,7 +234,8 @@ export default function ReportShowcase({ data, onExit }) {
             />
           </div>
           <div className="text-xs tabular-nums text-gray-200">
-            {String(i + 1).padStart(2, "0")}/{String(sections.length).padStart(2, "0")}
+            {String(i + 1).padStart(2, "0")}/
+            {String(sections.length).padStart(2, "0")}
           </div>
         </div>
         <div className="flex gap-2 mt-2">
@@ -202,7 +243,9 @@ export default function ReportShowcase({ data, onExit }) {
             <button
               key={s.key}
               onClick={() => go(idx)}
-              className={`h-1.5 flex-1 rounded-full ${idx === i ? "bg-white/70" : "bg-white/20 hover:bg-white/30"}`}
+              className={`h-1.5 flex-1 rounded-full ${
+                idx === i ? "bg-white/70" : "bg-white/20 hover:bg-white/30"
+              }`}
               aria-label={`Go to ${s.title}`}
             />
           ))}
@@ -219,16 +262,16 @@ export default function ReportShowcase({ data, onExit }) {
           transition={{ duration: 0.45, ease: "easeOut" }}
         >
           <header className="mb-4">
-            <div className="text-[#c8aa6e] uppercase tracking-[.18em] text-[10px]">{cur.subtitle}</div>
+            <div className="text-[#c8aa6e] uppercase tracking-[.18em] text-[10px]">
+              {cur.subtitle}
+            </div>
             <h1 className="text-3xl sm:text-4xl font-extrabold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
               {cur.title}
             </h1>
             <div className="mt-3 h-px w-full bg-gradient-to-r from-transparent via-[#c8aa6e]/40 to-transparent" />
           </header>
 
-          <div className="grid">
-            {cur.render()}
-          </div>
+          <div className="grid">{cur.render()}</div>
         </Motion.div>
 
         <div className="mt-6 flex items-center justify-between">
@@ -261,12 +304,17 @@ export default function ReportShowcase({ data, onExit }) {
 }
 
 function OverviewPanel({ overview }) {
-  const pct = (n, d = 1) => (n == null ? "—" : `${(Number(n) * 100).toFixed(d)}%`);
+  const pct = (n, d = 1) =>
+    n == null ? "—" : `${(Number(n) * 100).toFixed(d)}%`;
   const roles = overview?.roleDistribution || [];
 
   return (
     <div className="grid lg:grid-cols-5 md:grid-cols-3 grid-cols-2 gap-4">
-      <KpiCardAnimated label="Win Rate" value={overview.winRate} format="percent" />
+      <KpiCardAnimated
+        label="Win Rate"
+        value={overview.winRate}
+        format="percent"
+      />
       <KpiCardAnimated label="Avg KDA" value={overview.avgKDA} />
       <KpiCardAnimated label="CS / min" value={overview.avgCsPerMin} />
       <KpiCardAnimated label="Gold / min" value={overview.avgGoldPerMin} />
@@ -289,7 +337,9 @@ function OverviewPanel({ overview }) {
               <Motion.div
                 className="h-2.5 rounded-full bg-white/50"
                 initial={{ width: 0 }}
-                whileInView={{ width: `${Math.min(100, Math.max(0, (r.share ?? 0) * 100))}%` }}
+                whileInView={{
+                  width: `${Math.min(100, Math.max(0, (r.share ?? 0) * 100))}%`,
+                }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
               />
@@ -307,7 +357,8 @@ function OverviewPanel({ overview }) {
 
 function ChampionsPanel({ mostPlayed, champIcon }) {
   const round = (n, d = 2) => (n == null ? "—" : Number(n).toFixed(d));
-  const pct = (n, d = 1) => (n == null ? "—" : `${(Number(n) * 100).toFixed(d)}%`);
+  const pct = (n, d = 1) =>
+    n == null ? "—" : `${(Number(n) * 100).toFixed(d)}%`;
   return (
     <Motion.div
       className="grid md:grid-cols-2 gap-4"
@@ -320,7 +371,10 @@ function ChampionsPanel({ mostPlayed, champIcon }) {
         <Motion.div
           key={c.champion}
           className="flex items-center gap-4 bg-white/10 rounded-xl p-3 border border-white/20 hover:bg-white/[0.14] transition-colors"
-          variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
+          variants={{
+            hidden: { opacity: 0, y: 10 },
+            show: { opacity: 1, y: 0 },
+          }}
         >
           <ChampIcon icon={champIcon(c.champion)} champ={c.champion} />
           <div className="flex-1">
@@ -332,7 +386,8 @@ function ChampionsPanel({ mostPlayed, champIcon }) {
             </div>
             <div className="text-xs text-gray-200">{pct(c.winRate)} WR</div>
             <div className="text-xs text-gray-200">
-              KDA {round(c.avgKDA)} • CS {round(c.csPerMin)} • G {round(c.goldPerMin)} • V {round(c.visionPerMin)}
+              KDA {round(c.avgKDA)} • CS {round(c.csPerMin)} • G{" "}
+              {round(c.goldPerMin)} • V {round(c.visionPerMin)}
             </div>
           </div>
         </Motion.div>
@@ -357,16 +412,25 @@ function ImprovementsPanel({ kpis }) {
           <Motion.li
             key={i}
             className="bg-white/10 border border-white/10 rounded-lg p-4"
-            variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}
+            variants={{
+              hidden: { opacity: 0, y: 8 },
+              show: { opacity: 1, y: 0 },
+            }}
           >
             <div className="flex items-start gap-3">
-              <div className="text-[#c8aa6e] font-bold mt-0.5">{k.priority ?? i + 1}</div>
+              <div className="text-[#c8aa6e] font-bold mt-0.5">
+                {k.priority ?? i + 1}
+              </div>
               <div>
                 <div className="font-semibold text-white">{k.what}</div>
                 <div className="text-sm text-gray-100">Why: {k.why}</div>
-                {k.how && <div className="text-sm text-gray-100">How: {k.how}</div>}
+                {k.how && (
+                  <div className="text-sm text-gray-100">How: {k.how}</div>
+                )}
                 {k.expectedImpact && (
-                  <div className="text-xs text-gray-200 mt-1">Expected impact: {k.expectedImpact}</div>
+                  <div className="text-xs text-gray-200 mt-1">
+                    Expected impact: {k.expectedImpact}
+                  </div>
                 )}
               </div>
             </div>
@@ -385,22 +449,32 @@ function StrengthsWeaknessesPanel({ sAndW }) {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
       >
-        <div className="text-xs uppercase tracking-widest text-[#c8aa6e] mb-2">Strengths</div>
+        <div className="text-xs uppercase tracking-widest text-[#c8aa6e] mb-2">
+          Strengths
+        </div>
         <Motion.ul
           className="space-y-3"
           initial="hidden"
           whileInView="show"
           viewport={{ once: true }}
-          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
+          variants={{
+            hidden: {},
+            show: { transition: { staggerChildren: 0.06 } },
+          }}
         >
           {(sAndW.strengths || []).map((s, i) => (
             <Motion.li
               key={i}
               className="bg-emerald-900/20 border border-emerald-500/20 rounded-lg p-3"
-              variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}
+              variants={{
+                hidden: { opacity: 0, y: 8 },
+                show: { opacity: 1, y: 0 },
+              }}
             >
               <div className="text-emerald-300 font-medium">{s.insight}</div>
-              <div className="text-xs text-emerald-100/95 mt-1">{s.evidence}</div>
+              <div className="text-xs text-emerald-100/95 mt-1">
+                {s.evidence}
+              </div>
             </Motion.li>
           ))}
         </Motion.ul>
@@ -412,19 +486,27 @@ function StrengthsWeaknessesPanel({ sAndW }) {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
       >
-        <div className="text-xs uppercase tracking-widest text-[#c8aa6e] mb-2">Weaknesses</div>
+        <div className="text-xs uppercase tracking-widest text-[#c8aa6e] mb-2">
+          Weaknesses
+        </div>
         <Motion.ul
           className="space-y-3"
           initial="hidden"
           whileInView="show"
           viewport={{ once: true }}
-          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06 } } }}
+          variants={{
+            hidden: {},
+            show: { transition: { staggerChildren: 0.06 } },
+          }}
         >
           {(sAndW.weaknesses || []).map((w, i) => (
             <Motion.li
               key={i}
               className="bg-rose-900/25 border border-rose-500/20 rounded-lg p-3"
-              variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}
+              variants={{
+                hidden: { opacity: 0, y: 8 },
+                show: { opacity: 1, y: 0 },
+              }}
             >
               <div className="text-rose-300 font-medium">{w.insight}</div>
               <div className="text-xs text-rose-100/95 mt-1">{w.evidence}</div>
@@ -456,13 +538,11 @@ function HighlightCarousel({ highlights, splashArt }) {
   const [idx, setIdx] = useState(0);
   const wrap = (n) => (n + highlights.length) % highlights.length;
 
-  // Keyboard (focus the banner to use ←/→)
   const onKeyDown = (e) => {
     if (e.key === "ArrowRight") setIdx((i) => wrap(i + 1));
     if (e.key === "ArrowLeft") setIdx((i) => wrap(i - 1));
   };
 
-  // Buttons only (desktop) + explicit touch-swipe (mobile)
   const [dir, setDir] = useState(0);
   const go = (next) => {
     const nextIdx = wrap(next);
@@ -470,7 +550,6 @@ function HighlightCarousel({ highlights, splashArt }) {
     setIdx(nextIdx);
   };
 
-  // Touch-swipe (no mouse drag)
   const touchX = useRef(null);
   const onTouchStart = (e) => {
     touchX.current = e.touches?.[0]?.clientX ?? null;
@@ -498,7 +577,6 @@ function HighlightCarousel({ highlights, splashArt }) {
       aria-roledescription="carousel"
       aria-label="Highlight Matches"
     >
-      {/* Full splash artwork (no aggressive crop) */}
       <div className="absolute inset-0 bg-black" />
       <Motion.img
         key={`${cur.champion}-${idx}`}
@@ -508,16 +586,13 @@ function HighlightCarousel({ highlights, splashArt }) {
         initial={{ scale: 1.02, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.7, ease: "easeOut" }}
-        // tip: splash is landscape; no objectPosition tweak needed
         draggable={false}
       />
 
-      {/* Legibility overlays */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/35 to-black/80" />
       <div className="absolute inset-0 bg-[radial-gradient(900px_circle_at_15%_0%,rgba(200,170,110,.12),transparent_60%)]" />
       <div className="absolute inset-0 backdrop-blur-[0.5px]" />
 
-      {/* Slide content (no mouse drag; buttons/touch only) */}
       <Motion.div
         key={`content-${idx}`}
         className="relative h-full flex items-end"
@@ -527,7 +602,6 @@ function HighlightCarousel({ highlights, splashArt }) {
         transition={{ duration: 0.38, ease: "easeOut" }}
       >
         <div className="w-full p-4 sm:p-6 md:p-8">
-          {/* Top meta row */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <span className="px-2 py-1 text-[11px] uppercase tracking-widest rounded bg-white/10 border border-white/15 text-[#c8aa6e]">
@@ -542,7 +616,6 @@ function HighlightCarousel({ highlights, splashArt }) {
             </div>
           </div>
 
-          {/* Champion + One-liner */}
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
             <div>
               <h3 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white drop-shadow-[0_4px_14px_rgba(0,0,0,0.55)]">
@@ -555,7 +628,6 @@ function HighlightCarousel({ highlights, splashArt }) {
               )}
             </div>
 
-            {/* KDA pill (use your existing string or format it here) */}
             <Motion.div
               className="md:mb-1 inline-flex items-center gap-2 rounded-full bg-black/40 border border-white/15 px-3 py-1.5"
               initial={{ y: 12, opacity: 0 }}
@@ -570,27 +642,47 @@ function HighlightCarousel({ highlights, splashArt }) {
             </Motion.div>
           </div>
 
-          {/* Stat cards row */}
           <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <GlassStat label="Score" value={round(cur?.scoreBreakdown?.total ?? 0, 2)} />
-            <GlassStat label="Win bonus" value={round(cur?.scoreBreakdown?.winBonus ?? 0)} />
-            <GlassStat label="DMG / min" value={round(cur?.scoreBreakdown?.dmgDealtPerMin ?? 0)} />
+            <GlassStat
+              label="Score"
+              value={round(cur?.scoreBreakdown?.total ?? 0, 2)}
+            />
+            <GlassStat
+              label="Win bonus"
+              value={round(cur?.scoreBreakdown?.winBonus ?? 0)}
+            />
+            <GlassStat
+              label="DMG / min"
+              value={round(cur?.scoreBreakdown?.dmgDealtPerMin ?? 0)}
+            />
             <GlassStat
               label="Objectives"
-              value={`Baron ${cur?.scoreBreakdown?.objectivesImpact?.baron ?? 0} · Dragon ${cur?.scoreBreakdown?.objectivesImpact?.dragon ?? 0} · Tower ${cur?.scoreBreakdown?.objectivesImpact?.tower ?? 0} · Herald ${cur?.scoreBreakdown?.objectivesImpact?.herald ?? 0}`}
+              value={`Baron ${
+                cur?.scoreBreakdown?.objectivesImpact?.baron ?? 0
+              } · Dragon ${
+                cur?.scoreBreakdown?.objectivesImpact?.dragon ?? 0
+              } · Tower ${
+                cur?.scoreBreakdown?.objectivesImpact?.tower ?? 0
+              } · Herald ${cur?.scoreBreakdown?.objectivesImpact?.herald ?? 0}`}
             />
           </div>
 
-          {/* Controls */}
           <div className="mt-6 flex items-center justify-between">
             <div className="text-[11px] uppercase tracking-[.18em] text-[#c8aa6e]">
               Tap/Swipe on mobile • Use ←/→ • Buttons below
             </div>
             <div className="flex items-center gap-2">
-              <CarouselButton onClick={() => go(idx - 1)} ariaLabel="Previous highlight">
+              <CarouselButton
+                onClick={() => go(idx - 1)}
+                ariaLabel="Previous highlight"
+              >
                 ←
               </CarouselButton>
-              <CarouselButton onClick={() => go(idx + 1)} ariaLabel="Next highlight" primary>
+              <CarouselButton
+                onClick={() => go(idx + 1)}
+                ariaLabel="Next highlight"
+                primary
+              >
                 →
               </CarouselButton>
             </div>
@@ -598,14 +690,15 @@ function HighlightCarousel({ highlights, splashArt }) {
         </div>
       </Motion.div>
 
-      {/* Dots */}
       <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center gap-1.5">
         {highlights.map((_, i) => (
           <button
             key={i}
             onClick={() => go(i)}
             className={`h-1.5 rounded-full transition-all ${
-              i === idx ? "w-6 bg-[#c8aa6e]" : "w-2.5 bg-white/40 hover:bg-white/60"
+              i === idx
+                ? "w-6 bg-[#c8aa6e]"
+                : "w-2.5 bg-white/40 hover:bg-white/60"
             }`}
             aria-label={`Go to highlight ${i + 1}`}
           />
@@ -648,37 +741,36 @@ function CarouselButton({ children, onClick, ariaLabel, primary = false }) {
   );
 }
 
-
 function YearEndPanel({ yearEnd, champIcon, splashArt }) {
   const mapToDdragonId = (name) => {
     if (!name) return null;
     const n = String(name).trim().toLowerCase();
 
     const alias = {
-      "kai'sa": "KaiSa",
-      "kaisa": "KaiSa",
+      "kai'sa": "Kaisa",
+      kaisa: "Kaisa",
       "miss fortune": "MissFortune",
-      "missfortune": "MissFortune",
+      missfortune: "MissFortune",
       "dr mundo": "DrMundo",
       "dr. mundo": "DrMundo",
-      "drmundo": "DrMundo",
-      "wukong": "MonkeyKing",
+      drmundo: "DrMundo",
+      wukong: "MonkeyKing",
       "vel'koz": "Velkoz",
-      "velkoz": "Velkoz",
+      velkoz: "Velkoz",
       "cho'gath": "Chogath",
-      "chogath": "Chogath",
+      chogath: "Chogath",
       "kog'maw": "KogMaw",
-      "kogmaw": "KogMaw",
+      kogmaw: "KogMaw",
       "jarvan iv": "JarvanIV",
-      "jarvaniv": "JarvanIV",
+      jarvaniv: "JarvanIV",
       "lee sin": "LeeSin",
-      "leesin": "LeeSin",
+      leesin: "LeeSin",
       "twisted fate": "TwistedFate",
-      "twistedfate": "TwistedFate",
+      twistedfate: "TwistedFate",
       "xin zhao": "XinZhao",
-      "xinzhao": "XinZhao",
+      xinzhao: "XinZhao",
       "renata glasc": "Renata",
-      "renataglasc": "Renata",
+      renataglasc: "Renata",
       "nunu & willump": "Nunu",
       "nunu and willump": "Nunu",
       "nunu&willump": "Nunu",
@@ -696,17 +788,19 @@ function YearEndPanel({ yearEnd, champIcon, splashArt }) {
   };
 
   const rawList = Array.isArray(yearEnd.mostPlayed) ? yearEnd.mostPlayed : [];
-  const names = rawList.map((c) => (typeof c === "string" ? c : c?.champion)).filter(Boolean);
+  const names = rawList
+    .map((c) => (typeof c === "string" ? c : c?.champion))
+    .filter(Boolean);
 
   const heroId =
-    mapToDdragonId(names[0]).replace(/\d.*$/, '') ||
-    mapToDdragonId(names.find(Boolean)).replace(/\d.*$/, '') ||
+    mapToDdragonId(names[0]).replace(/\d.*$/, "") ||
+    mapToDdragonId(names.find(Boolean)).replace(/\d.*$/, "") ||
     "Ashe";
   const heroSplash = splashArt(heroId);
 
   const chips = names
     .map((n) => {
-      const id = mapToDdragonId(n).replace(/\d.*$/, '');
+      const id = mapToDdragonId(n).replace(/\d.*$/, "");
       if (!id) return null;
       const icon = champIcon(id);
       const splash = splashArt(id);
@@ -724,11 +818,11 @@ function YearEndPanel({ yearEnd, champIcon, splashArt }) {
       <div className="relative h-56 sm:h-64 md:h-72">
         {heroSplash && (
           <img
-                src={heroSplash}
-                alt="Year-end hero"
-                className="absolute inset-0 w-full h-full object-cover"
-                style={{ objectPosition: "50% 25%" }}
-            />
+            src={heroSplash}
+            alt="Year-end hero"
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ objectPosition: "50% 25%" }}
+          />
         )}
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/55 to-black/85" />
         <div className="absolute bottom-4 left-5 right-5">
@@ -749,7 +843,9 @@ function YearEndPanel({ yearEnd, champIcon, splashArt }) {
             </div>
             <div className="mt-3 flex flex-wrap gap-3">
               {chips.length === 0 ? (
-                <span className="text-gray-300">No champion visuals available.</span>
+                <span className="text-gray-300">
+                  No champion visuals available.
+                </span>
               ) : (
                 chips.slice(0, 6).map((c) => (
                   <div
@@ -818,9 +914,6 @@ function YearEndPanel({ yearEnd, champIcon, splashArt }) {
                         {b.period}
                       </span>
                     </div>
-                    <div className="mt-1 text-lg font-bold">
-                      {formatMaybe(b.from)} → <span className="text-white">{formatMaybe(b.to)}</span>
-                    </div>
                   </li>
                 ))
               )}
@@ -853,7 +946,6 @@ function YearEndPanel({ yearEnd, champIcon, splashArt }) {
   );
 }
 
-
 function ShareablesPanel({ share }) {
   return (
     <div className="grid lg:grid-cols-2 gap-6 text-white">
@@ -861,7 +953,12 @@ function ShareablesPanel({ share }) {
         <div className="text-xs text-gray-200 mb-1">Achivements!!</div>
         <ul className="space-y-2">
           {(share.tweetLength || []).map((t, i) => (
-            <li key={i} className="bg-white/10 border border-white/20 rounded-md p-2 text-sm">{t}</li>
+            <li
+              key={i}
+              className="bg-white/10 border border-white/20 rounded-md p-2 text-sm"
+            >
+              {t}
+            </li>
           ))}
         </ul>
       </div>
@@ -869,7 +966,12 @@ function ShareablesPanel({ share }) {
         <div className="text-xs text-gray-400 mb-1">Key Recaps</div>
         <ul className="space-y-2">
           {(share.storyLength || []).map((t, i) => (
-            <li key={i} className="bg-white/10 border border-white/20 rounded-md p-2 text-sm">{t}</li>
+            <li
+              key={i}
+              className="bg-white/10 border border-white/20 rounded-md p-2 text-sm"
+            >
+              {t}
+            </li>
           ))}
         </ul>
       </div>
@@ -879,12 +981,18 @@ function ShareablesPanel({ share }) {
           <div className="text-xs text-gray-400 mb-1">Stats display</div>
           <div className="grid sm:grid-cols-2 gap-3">
             {share.cardIdeas.map((c, i) => (
-              <div key={i} className="rounded-lg bg-white/10 border border-white/20 p-3">
+              <div
+                key={i}
+                className="rounded-lg bg-white/10 border border-white/20 p-3"
+              >
                 <div className="font-semibold">{c.title}</div>
                 <div className="text-xs text-gray-300 mb-2">{c.subtitle}</div>
                 <div className="grid grid-cols-2 gap-1 text-xs text-gray-200">
                   {(c.metrics || []).map((m, j) => (
-                    <div key={j} className="bg-black/30 rounded px-2 py-1 flex items-center justify-between">
+                    <div
+                      key={j}
+                      className="bg-black/30 rounded px-2 py-1 flex items-center justify-between"
+                    >
                       <span className="text-gray-200">{m.label}</span>
                       <span className="font-mono text-white">{m.value}</span>
                     </div>
@@ -906,7 +1014,9 @@ function QualityPanel({ warnings }) {
   return (
     <div className="lol-panel p-5">
       <ul className="mt-1 list-disc list-inside text-sm text-amber-100">
-        {warnings.map((w, i) => <li key={i}>{w}</li>)}
+        {warnings.map((w, i) => (
+          <li key={i}>{w}</li>
+        ))}
       </ul>
     </div>
   );
@@ -922,8 +1032,12 @@ function KpiCardAnimated({ label, value, format }) {
       viewport={{ once: true }}
       transition={{ duration: 0.4 }}
     >
-      <div className="text-xs uppercase tracking-widest text-[#c8aa6e]">{label}</div>
-      <div className="text-2xl font-extrabold mt-1 tabular-nums text-white">{display ?? "—"}</div>
+      <div className="text-xs uppercase tracking-widest text-[#c8aa6e]">
+        {label}
+      </div>
+      <div className="text-2xl font-extrabold mt-1 tabular-nums text-white">
+        {display ?? "—"}
+      </div>
     </Motion.div>
   );
 }
@@ -939,7 +1053,10 @@ function ChampIcon({ icon, champ, size = 56 }) {
       draggable={false}
     />
   ) : (
-    <div style={{ width: size, height: size }} className="rounded-md ring-1 ring-white/20 bg-white/10" />
+    <div
+      style={{ width: size, height: size }}
+      className="rounded-md ring-1 ring-white/20 bg-white/10"
+    />
   );
 }
 
@@ -972,11 +1089,4 @@ function useCountUp(target, { duration = 800, format } = {}) {
   if (v == null) return "—";
   if (format === "percent") return `${(v * 100).toFixed(1)}%`;
   return Number(v).toFixed(2);
-}
-
-function formatMaybe(n, d = 2) {
-  if (n == null) return "—";
-  const num = Number(n);
-  if (Number.isNaN(num)) return String(n);
-  return num % 1 === 0 ? String(num) : num.toFixed(d);
 }

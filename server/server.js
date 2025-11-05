@@ -272,6 +272,43 @@ app.get("/api/pullMatchDetail", async (req, res) => {
         analysis: cache.analysis || {},
       };
 
+      const userPayloadMerged = {
+        puuid,
+        rateLimited: hitRateLimitDuringDetails,
+        fetchedMatches: merged.length,
+        requestedCap: MAX_MATCHES,
+        matches: merged,
+      };
+
+      const body = {
+        anthropic_version: "bedrock-2023-05-31",
+        max_tokens: 8000,
+        temperature: 0,
+        system: riot.systemPrompt,
+        messages: [
+          { role: "user", content: [{ type: "text", text: JSON.stringify(userPayloadMerged) }] },
+        ],
+      };
+
+      const cmd = new InvokeModelCommand({
+        modelId: MODEL_ID,
+        contentType: "application/json",
+        accept: "application/json",
+        body: JSON.stringify(body),
+      });
+
+      let analysisJson = {};
+      try {
+        const bedrockResp = await bedrock.send(cmd);
+        const parsed = JSON.parse(new TextDecoder().decode(bedrockResp.body));
+        const text = parsed?.content?.[0]?.text || "{}";
+        analysisJson = JSON.parse(text);
+      } catch (e) {
+        console.warn("Analysis re-run failed; returning previous analysis", e);
+        analysisJson = cache.analysis || { error: "analysis_failed" };
+      }
+
+      updatedCache.analysis = analysisJson;
       await s3PutJSON(S3_BUCKET, key, updatedCache);
 
       return res.json({
@@ -280,7 +317,7 @@ app.get("/api/pullMatchDetail", async (req, res) => {
         partial: hitRateLimitDuringDetails,
         fetched: merged.length,
         cap: MAX_MATCHES,
-        analysis: updatedCache.analysis,
+        analysis: analysisJson,
         fromCache: false,
         cacheUpdatedAt: updatedCache.updatedAt,
       });
